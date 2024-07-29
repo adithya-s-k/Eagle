@@ -332,6 +332,11 @@ def main():
 
                             avg_val_loss = val_loss / len(val_loader)
                             print(f"Average Validation Loss: {avg_val_loss}")
+                            wandb.log(
+                                {
+                                    "avg_eval_loss": avg_val_loss,
+                                }
+                            )
 
                         # Evaluate on a subset of validation samples
                         eval_samples = list(val_dataset)[:100]
