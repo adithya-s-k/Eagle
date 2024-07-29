@@ -1,0 +1,9 @@
+accelerate
+datasets
+einops
+flash-attn
+timm
+transformers
+nltk
+levenshtein
+wandb
