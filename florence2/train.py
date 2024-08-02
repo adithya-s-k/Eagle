@@ -235,6 +235,7 @@ def main():
         push_to_hub,
         smoothing_window=10,
     ):
+        # global eval_interation_count
         # Initialize optimizer and learning rate scheduler
         optimizer = AdamW(model.parameters(), lr=lr)
         num_training_steps = epochs * len(train_loader)
@@ -244,7 +245,19 @@ def main():
             num_warmup_steps=50,
             num_training_steps=num_training_steps,
         )
+        eval_interation_count = 0
 
+        results_table = wandb.Table(
+            columns=[
+                "Eval Iteration",
+                "Image",
+                "Actual Prediction",
+                "Generated Prediction",
+                "BLEU",
+                "METEOR",
+                "Edit Distance",
+            ]
+        )
         # Prepare model, optimizer, dataloader, and scheduler for distributed training
         model, optimizer, train_loader, lr_scheduler = accelerator.prepare(
             model, optimizer, train_loader, lr_scheduler
@@ -301,6 +314,7 @@ def main():
                         )
 
                     if (step + 1) % (total_steps // evals_per_epoch) == 0:
+                        eval_interation_count += 1
                         print(
                             f"\nPerforming evaluation at step {step + 1}/{total_steps}"
                         )
@@ -343,6 +357,7 @@ def main():
                         bleu_scores = []
                         meteor_scores = []
                         edit_distances = []
+
                         with torch.no_grad():
                             for sample in tqdm(
                                 eval_samples, desc="Evaluating on random samples"
@@ -360,12 +375,21 @@ def main():
                                 edit_distances.append(edit_dist)
 
                                 # Log individual sample results
-                                wandb.log(
-                                    {
-                                        "sample_bleu": bleu,
-                                        "sample_meteor": meteor,
-                                        "sample_edit_distance": edit_dist,
-                                    }
+                                # wandb.log(
+                                #     {
+                                #         "sample_bleu": bleu,
+                                #         "sample_meteor": meteor,
+                                #         "sample_edit_distance": edit_dist,
+                                #     }
+                                # )
+                                results_table.add_data(
+                                    eval_interation_count,
+                                    wandb.Image(image),
+                                    reference_answer,
+                                    generated_answer,
+                                    bleu,
+                                    meteor,
+                                    edit_dist,
                                 )
 
                         # Calculate and log average scores
@@ -375,9 +399,13 @@ def main():
 
                         wandb.log(
                             {
+                                "evaluation_results": results_table,
                                 "avg_bleu": avg_bleu,
                                 "avg_meteor": avg_meteor,
                                 "avg_edit_distance": avg_edit_distance,
+                                "eval_iteration": eval_interation_count,
+                                "epoch": epoch,
+                                "step": global_step,
                             }
                         )
 
