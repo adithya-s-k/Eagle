@@ -7,3 +7,4 @@ transformers
 nltk
 levenshtein
 wandb
+peft
