@@ -1,10 +1,15 @@
 # Florence Model Fine-Tuning
 
-This repository contains a script for fine-tuning a Florence model on a custom dataset using PyTorch, Hugging Face Transformers, and Weights & Biases (wandb) for experiment tracking.
+This repository contains two scripts for fine-tuning a Florence model on custom datasets using PyTorch, Hugging Face Transformers, and Weights & Biases (wandb) for experiment tracking.
 
-## Usage
+1. `train.py`: Standard fine-tuning without Low-Rank Adaptation (LoRA)
+2. `lora_train.py`: Fine-tuning with Low-Rank Adaptation (LoRA) support
 
-The script supports various command-line arguments for customizing the training process. Below is a description of the available arguments:
+## Standard Fine-Tuning (train.py)
+
+### Usage
+
+The `train.py` script supports various command-line arguments for customizing the training process. Below is a description of the available arguments:
 
 - `--model_name`: Name or path of the model to use (default: `microsoft/Florence-2-base-ft`).
 - `--dataset`: Name or path of the dataset to use (default: `AdithyaSK/img2Latex-v2`).
@@ -19,41 +24,74 @@ The script supports various command-line arguments for customizing the training 
 - `--evals_per_epoch`: Number of evaluations to perform per epoch (default: `4`).
 - `--push_to_hub`: Repository name to push the model to Hugging Face Hub (optional).
 
-To run the training script with default settings:
+To run the standard training script:
 ```bash
 python train.py
 ```
 
-To customize the training process:
+## LoRA Fine-Tuning (lora_train.py)
+
+### Usage
+
+The `lora_train.py` script supports LoRA-based fine-tuning and includes additional features. Here are the command-line arguments:
+
+- `--dataset`: Dataset to train on (required, choices: "docvqa", "cauldron", "vqainstruct").
+- `--batch-size`: Batch size for training (default: `6`).
+- `--use-lora`: Flag to enable Low-Rank Adaptation (LoRA) for training.
+- `--epochs`: Number of epochs to train for (default: `10`).
+- `--lr`: Learning rate (default: `1e-6`).
+- `--eval-steps`: Number of steps between evaluations (default: `1000`).
+- `--run-name`: Run name for wandb (optional).
+- `--max-val-item-count`: Maximum number of items to evaluate on during validation (default: `1000`).
+
+To run the LoRA training script:
 ```bash
-python train.py --model_name "your-model-name" --dataset "your-dataset" --learning_rate 1e-5 --epochs 3
+python lora_train.py --dataset docvqa --use-lora
 ```
 
-## Training Process
+### LoRA Configuration
 
-The training script performs the following steps:
+When LoRA is enabled, the script applies the following configuration:
 
-1. Parses command-line arguments.
-2. Initializes Weights & Biases for experiment tracking.
-3. Downloads and prepares the dataset.
-4. Initializes the model and processor from the Hugging Face library.
-5. Defines a custom dataset and data loader.
-6. Defines a training loop with evaluation and logging.
-7. Calculates evaluation metrics (BLEU, METEOR, Levenshtein distance).
-8. Saves model checkpoints and optionally pushes them to the Hugging Face Hub.
+- Rank (r): 8
+- Alpha: 8
+- Target modules: "q_proj", "o_proj", "k_proj", "v_proj", "linear", "Conv2d", "lm_head", "fc2"
+- Task type: CAUSAL_LM
+- LoRA dropout: 0.05
+- Bias: none
+- Use RS-LoRA: True
+- Weight initialization: gaussian
+
+## Training Process (Both Scripts)
+
+Both scripts perform the following general steps:
+
+1. Parse command-line arguments.
+2. Initialize Weights & Biases for experiment tracking.
+3. Load and prepare the dataset.
+4. Initialize the model and processor.
+5. Set up data loaders and optimizer.
+6. Train the model with periodic evaluation.
+7. Log metrics and save checkpoints.
 
 ## Evaluation Metrics
 
-The script calculates the following evaluation metrics:
+Both scripts calculate the following evaluation metrics:
 
 - BLEU score
 - METEOR score
-- Levenshtein distance
+- Levenshtein distance (Edit distance)
 
-These metrics are logged to Weights & Biases for each evaluation step.
+These metrics are logged to Weights & Biases during evaluation steps.
 
 ## Model Checkpointing
 
-Model checkpoints are saved to the specified output directory after each epoch. Optionally, the model can be pushed to the Hugging Face Hub.
+Model checkpoints are saved periodically. In the LoRA script, only LoRA weights are saved when LoRA is enabled.
 
+## Requirements
 
+Ensure you have the required libraries installed:
+
+```bash
+pip install transformers torch wandb datasets nltk Levenshtein peft
+```
